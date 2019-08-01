@@ -1,0 +1,49 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  fnf-samples:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Description: oss-backup
+      Policies:
+        - Version: '1' # Allow ListObjects and Get/PutObject
+          Statement:
+            - Effect: Allow
+              Action:
+                - oss:ListObjects
+                - oss:GetObject
+                - oss:PutObject
+              Resource: '*'
+      # LogConfig:
+      #   Project: test-1585714933323637-hz
+      #   Logstore: test
+    listObjects:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 128
+        CodeUri: functions/listobjects
+        EnvironmentVariables:
+          OSS_ENDPOINT: https://oss-cn-hangzhou-internal.aliyuncs.com
+    detectFaces:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 512
+        CodeUri: functions/detectfaces
+        EnvironmentVariables:
+          OSS_ENDPOINT: https://oss-cn-hangzhou-internal.aliyuncs.com
+    resize:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        Timeout: 60
+        MemorySize: 512
+        CodeUri: functions/resize
+        EnvironmentVariables:
+          OSS_ENDPOINT: https://oss-cn-hangzhou-internal.aliyuncs.com

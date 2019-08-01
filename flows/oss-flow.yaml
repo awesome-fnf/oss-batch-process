@@ -1,0 +1,105 @@
+version: v1beta1
+type: flow
+steps:
+  - type: pass
+    name: init
+    outputMappings:
+      - target: marker
+        source: ""
+  - type: task
+    name: listObjects
+    resourceArn: acs:fc:::services/fnf-samples/functions/listObjects
+    inputMappings:
+      - target: bucket
+        source: $input.bucket
+      - target: marker
+        source: $local.marker
+      - target: prefix
+        source: $input.prefix
+      - target: delimiter
+        source: /
+    # 错误重试，可以定义多个重试策略，按照定义先后顺序匹配。
+    retry:
+      - errors:
+        # 可恢复错误可以多重试几次
+        - FC.ResourceThrottled
+        - FC.ResourceExhausted
+        - FC.InternalServerError
+        - FC.Unknown
+        - FnF.TaskTimeout
+        intervalSeconds: 3
+        maxAttempts: 10
+        multiplier: 1.5
+  - type: foreach
+    name: processObjects
+    iterationMapping:
+      collection: $.keys
+      item: key
+    steps:
+      - type: task
+        name: resize
+        resourceArn: acs:fc:::services/fnf-samples/functions/resize
+        inputMappings:
+          - target: key
+            source: $input.key
+          - target: bucket
+            source: $input.bucket
+          - target: width
+            source: 100
+          - target: height
+            source: 100
+        # 错误重试，可以定义多个重试策略，按照定义先后顺序匹配。
+        retry:
+          - errors:
+            # 可恢复错误可以多重试几次
+            - FC.ResourceThrottled
+            - FC.ResourceExhausted
+            - FC.InternalServerError
+            - FC.Unknown
+            - FnF.TaskTimeout
+            intervalSeconds: 3
+            maxAttempts: 10
+            multiplier: 1.5
+        # 错误捕获，可以定义多个捕获策略，按照定义先后顺序匹配。
+        catch:
+          - errors:
+            # `FnF.ALL` 会匹配所有的错误，忽略单个文件处理错误
+            - FnF.ALL
+            goto: ignore
+      - type: task
+        name: detectFaces
+        resourceArn: acs:fc:::services/fnf-samples/functions/detectFaces
+        inputMappings:
+          - target: key
+            source: $input.key
+          - target: bucket
+            source: $input.bucket
+        # 错误重试，可以定义多个重试策略，按照定义先后顺序匹配。
+        retry:
+          - errors:
+            # 可恢复错误可以多重试几次
+            - FC.ResourceThrottled
+            - FC.ResourceExhausted
+            - FC.InternalServerError
+            - FC.Unknown
+            - FnF.TaskTimeout
+            intervalSeconds: 3
+            maxAttempts: 10
+            multiplier: 1.5
+        # 错误捕获，可以定义多个捕获策略，按照定义先后顺序匹配。
+        catch:
+          - errors:
+            # `FnF.ALL` 会匹配所有的错误，忽略单个文件处理错误
+            - FnF.ALL
+            goto: ignore
+      - type: pass
+        name: ignore
+  - type: choice
+    name: hasMoreObjects
+    choices:
+      - condition: $.hasMore
+        goto: listObjects
+    default:
+      goto: final
+  - type: succeed
+    name: final
