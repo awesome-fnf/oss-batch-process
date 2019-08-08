@@ -1,16 +1,22 @@
+# 流程定义描述参见 https://help.aliyun.com/document_detail/122492.html
+# 更多示例 http://fnf.byexamples.org
 version: v1beta1
 type: flow
 steps:
   - type: pass
     name: init
+    # 由于 listObjects 会引用 $local.marker，这里设置 marker 初始值为空
+    # 所有的输出都会合并到当前步骤的 $local，后续步骤可以在 inputMappings 里通过 $local.key 引用
     outputMappings:
       - target: marker
+        # 不以 $input, $local, $context 开头 source 值被当做常量
         source: ""
   - type: task
     name: listObjects
     resourceArn: acs:fc:::services/fnf-samples/functions/listObjects
     inputMappings:
       - target: bucket
+        # bucket 来自流程输入 $input
         source: $input.bucket
       - target: marker
         source: $local.marker
@@ -33,6 +39,7 @@ steps:
   - type: foreach
     name: processObjects
     iterationMapping:
+      # listObjects 的输出包含 keys，这里会对每一个 key 并行执行下面的步骤
       collection: $.keys
       item: key
     steps:
@@ -97,6 +104,7 @@ steps:
   - type: choice
     name: hasMoreObjects
     choices:
+      # hasMore 也是 listObjects 的输出
       - condition: $.hasMore
         goto: listObjects
     default:
